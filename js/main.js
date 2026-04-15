@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let isModelTrained = false;
     let inputNodes = 0;
     let outputNodes = 0;
+    let lastEvalResults = null; // Store model evaluation results
 
     // ----- Data Handling -----
 
@@ -262,7 +263,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         try {
-            network.buildModel(inputNodes, outputNodes, lr);
+            const isClassification = dataManager.isClassification();
+            network.buildModel(inputNodes, outputNodes, lr, isClassification);
         } catch(e) {
             console.error(e);
             showToast("Failed to build model geometry. Check layer configurations.", "error");
@@ -292,6 +294,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         pills.loss.textContent = logs.loss.toFixed(4);
                         if (logs.val_loss) pills.valLoss.textContent = logs.val_loss.toFixed(4);
 
+                        // Update accuracy for classification tasks
+                        if (logs.acc !== undefined) {
+                            pills.acc.textContent = `${(logs.acc * 100).toFixed(1)}%`;
+                        } else if (logs.val_acc !== undefined) {
+                            pills.acc.textContent = `${(logs.val_acc * 100).toFixed(1)}%`;
+                        }
+
                         if (!chart.isDrawingPending) {
                             chart.isDrawingPending = true;
                             requestAnimationFrame(() => {
@@ -315,6 +324,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                         visualizer.setWeights(wts);
                         visualizer.draw();
                     } catch(e) {}
+
+                    // Evaluate model performance
+                    try {
+                        const evalX = currentTensors.xVal || currentTensors.xTrain;
+                        const evalY = currentTensors.yVal || currentTensors.yTrain;
+                        lastEvalResults = network.evaluateModel(evalX, evalY);
+
+                        // Update header accuracy pill
+                        if (lastEvalResults.type === 'classification') {
+                            pills.acc.textContent = `${(lastEvalResults.accuracy * 100).toFixed(1)}%`;
+                            document.getElementById('pill-acc').querySelector('.pill-label').textContent = 'Accuracy';
+                        } else {
+                            pills.acc.textContent = `${(lastEvalResults.r2 * 100).toFixed(1)}%`;
+                            document.getElementById('pill-acc').querySelector('.pill-label').textContent = 'R² Score';
+                        }
+                    } catch(e) {
+                        console.warn('Evaluation failed:', e);
+                    }
 
                     showToast("Training Complete!", "success");
 
@@ -435,6 +462,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         predPanel.style.display = 'flex';
         buildPredictionInputs();
         btnPredictSingle.disabled = false;
+
+        // Show the performance tab if we have eval results
+        if (lastEvalResults) {
+            renderPerformanceResults(lastEvalResults);
+        }
+
         // Trigger resize so canvases adjust
         setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
     }
@@ -661,6 +694,178 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         showToast("Predictions CSV downloaded", "success");
     });
+
+    // ─── Performance Rendering ───
+
+    function renderPerformanceResults(evalResult) {
+        const container = document.getElementById('pred-perf-content');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (evalResult.type === 'classification') {
+            renderClassificationPerformance(container, evalResult);
+        } else {
+            renderRegressionPerformance(container, evalResult);
+        }
+    }
+
+    function renderClassificationPerformance(container, result) {
+        const featureInfo = dataManager.getFeatureInfo();
+        const targetCats = featureInfo.targets.length > 0 && featureInfo.targets[0].categories
+            ? featureInfo.targets[0].categories
+            : Array.from({ length: result.numClasses }, (_, i) => `Class ${i}`);
+
+        // Summary cards row
+        const summaryRow = document.createElement('div');
+        summaryRow.className = 'perf-summary-row';
+        summaryRow.innerHTML = `
+            <div class="perf-metric-card perf-accent">
+                <span class="perf-metric-label">Accuracy</span>
+                <span class="perf-metric-value">${(result.accuracy * 100).toFixed(1)}%</span>
+            </div>
+            <div class="perf-metric-card">
+                <span class="perf-metric-label">Samples</span>
+                <span class="perf-metric-value">${result.numSamples}</span>
+            </div>
+            <div class="perf-metric-card">
+                <span class="perf-metric-label">Classes</span>
+                <span class="perf-metric-value">${result.numClasses}</span>
+            </div>
+        `;
+        container.appendChild(summaryRow);
+
+        // Confusion matrix
+        const cmSection = document.createElement('div');
+        cmSection.className = 'perf-section';
+        cmSection.innerHTML = '<h4 class="perf-section-title">Confusion Matrix</h4>';
+
+        const cmWrap = document.createElement('div');
+        cmWrap.className = 'confusion-matrix-wrap';
+
+        const table = document.createElement('table');
+        table.className = 'confusion-matrix';
+
+        // Header
+        const thead = document.createElement('thead');
+        let headerHtml = '<tr><th class="cm-corner">Actual \\ Pred</th>';
+        targetCats.forEach(c => { headerHtml += `<th class="cm-pred-header">${c}</th>`; });
+        headerHtml += '</tr>';
+        thead.innerHTML = headerHtml;
+        table.appendChild(thead);
+
+        // Body
+        const maxVal = Math.max(...result.confusionMatrix.flat(), 1);
+        const tbody = document.createElement('tbody');
+        for (let r = 0; r < result.numClasses; r++) {
+            let rowHtml = `<tr><td class="cm-actual-header">${targetCats[r]}</td>`;
+            for (let c = 0; c < result.numClasses; c++) {
+                const val = result.confusionMatrix[r][c];
+                const intensity = val / maxVal;
+                const isDiag = r === c;
+                const bgColor = isDiag
+                    ? `rgba(0, 206, 201, ${0.1 + intensity * 0.5})`
+                    : (val > 0 ? `rgba(255, 107, 107, ${0.1 + intensity * 0.4})` : 'transparent');
+                rowHtml += `<td class="cm-cell ${isDiag ? 'cm-diag' : ''}" style="background:${bgColor}">${val}</td>`;
+            }
+            rowHtml += '</tr>';
+            tbody.innerHTML += rowHtml;
+        }
+        table.appendChild(tbody);
+        cmWrap.appendChild(table);
+        cmSection.appendChild(cmWrap);
+        container.appendChild(cmSection);
+
+        // Per-class metrics
+        const classSection = document.createElement('div');
+        classSection.className = 'perf-section';
+        classSection.innerHTML = '<h4 class="perf-section-title">Per-Class Metrics</h4>';
+
+        const classTable = document.createElement('table');
+        classTable.className = 'perf-class-table';
+        classTable.innerHTML = `
+            <thead><tr>
+                <th>Class</th><th>Precision</th><th>Recall</th><th>F1</th><th>Support</th>
+            </tr></thead>
+        `;
+        const classTbody = document.createElement('tbody');
+        for (let c = 0; c < result.numClasses; c++) {
+            const p = result.perClass[c].precision;
+            const r2 = result.perClass[c].recall;
+            const f1 = (p + r2) > 0 ? 2 * p * r2 / (p + r2) : 0;
+            classTbody.innerHTML += `
+                <tr>
+                    <td class="class-name">${targetCats[c]}</td>
+                    <td>${(p * 100).toFixed(1)}%</td>
+                    <td>${(r2 * 100).toFixed(1)}%</td>
+                    <td>${(f1 * 100).toFixed(1)}%</td>
+                    <td>${result.perClass[c].support}</td>
+                </tr>
+            `;
+        }
+        classTable.appendChild(classTbody);
+        classSection.appendChild(classTable);
+        container.appendChild(classSection);
+    }
+
+    function renderRegressionPerformance(container, result) {
+        const featureInfo = dataManager.getFeatureInfo();
+        const targetNames = featureInfo.targets.map(t => t.name);
+
+        // Summary cards
+        const summaryRow = document.createElement('div');
+        summaryRow.className = 'perf-summary-row';
+        summaryRow.innerHTML = `
+            <div class="perf-metric-card perf-accent">
+                <span class="perf-metric-label">R² Score</span>
+                <span class="perf-metric-value">${(result.r2 * 100).toFixed(1)}%</span>
+                <div class="perf-metric-bar">
+                    <div class="perf-metric-bar-fill" style="width:${Math.max(0, result.r2 * 100)}%"></div>
+                </div>
+            </div>
+            <div class="perf-metric-card">
+                <span class="perf-metric-label">MAE</span>
+                <span class="perf-metric-value">${result.mae.toFixed(4)}</span>
+            </div>
+            <div class="perf-metric-card">
+                <span class="perf-metric-label">RMSE</span>
+                <span class="perf-metric-value">${result.rmse.toFixed(4)}</span>
+            </div>
+            <div class="perf-metric-card">
+                <span class="perf-metric-label">Samples</span>
+                <span class="perf-metric-value">${result.numSamples}</span>
+            </div>
+        `;
+        container.appendChild(summaryRow);
+
+        // Per-target breakdown (if multiple targets)
+        if (result.numTargets > 1) {
+            const targetSection = document.createElement('div');
+            targetSection.className = 'perf-section';
+            targetSection.innerHTML = '<h4 class="perf-section-title">Per-Target Metrics</h4>';
+
+            const table = document.createElement('table');
+            table.className = 'perf-class-table';
+            table.innerHTML = `
+                <thead><tr><th>Target</th><th>R²</th><th>MAE</th><th>RMSE</th></tr></thead>
+            `;
+            const tbody = document.createElement('tbody');
+            for (let t = 0; t < result.numTargets; t++) {
+                const m = result.perTarget[t];
+                const name = targetNames[t] || `Target ${t + 1}`;
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="class-name">${name}</td>
+                        <td>${(m.r2 * 100).toFixed(1)}%</td>
+                        <td>${m.mae.toFixed(4)}</td>
+                        <td>${m.rmse.toFixed(4)}</td>
+                    </tr>
+                `;
+            }
+            table.appendChild(tbody);
+            targetSection.appendChild(table);
+            container.appendChild(targetSection);
+        }
+    }
 
     // Theme Toggle implementation
     const btnTheme = document.getElementById('btn-theme-toggle');

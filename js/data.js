@@ -79,6 +79,17 @@ export class DataManager {
     setNormalization(method) {
         this.normalizationMethod = method;
     }
+
+    /**
+     * Returns true if any target column is categorical (classification task).
+     */
+    isClassification() {
+        for (let h of this.rawHeaders) {
+            let role = this.config[h];
+            if (role && role.startsWith('target') && role.endsWith('-cat')) return true;
+        }
+        return false;
+    }
     
     getFeatureCounts() {
         let inputs = 0, targets = 0;

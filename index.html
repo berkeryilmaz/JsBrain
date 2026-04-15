@@ -104,7 +104,7 @@
                 </div>
             </div>
 
-            <div class="control-section">
+            <div class="control-section control-section-grow">
                 <h3>Dataset Configuration</h3>
                 <div class="btn-grid" style="grid-template-columns: 1fr; margin-bottom: 12px;">
                     <label id="csv-drop-zone" class="ctrl-btn upload-btn" style="border-style: dashed; padding: 20px 12px; height: auto;">
@@ -235,6 +235,12 @@
                         <div class="pred-tab-bar">
                             <button class="pred-tab active" data-tab="single" id="pred-tab-single">Single Test</button>
                             <button class="pred-tab" data-tab="batch" id="pred-tab-batch">Batch CSV</button>
+                            <button class="pred-tab" data-tab="perf" id="pred-tab-perf">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 12px; height: 12px;">
+                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                                </svg>
+                                Performance
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -283,6 +289,15 @@
                                 <thead id="pred-table-head"></thead>
                                 <tbody id="pred-table-body"></tbody>
                             </table>
+                        </div>
+                    </div>
+                    <!-- Performance Metrics -->
+                    <div class="pred-content" id="pred-perf-content">
+                        <div class="perf-empty-state">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 32px; height: 32px; color: var(--text-muted);">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                            </svg>
+                            <span>Train a model to see performance metrics</span>
                         </div>
                     </div>
                 </div>

@@ -4,6 +4,7 @@ export class NetworkBuilder {
         this.layers = []; 
         this.isTraining = false;
         this.stopRequested = false;
+        this.taskType = 'regression'; // 'regression' or 'classification'
     }
 
     addLayer(units, activation) {
@@ -20,10 +21,13 @@ export class NetworkBuilder {
         return this.layers;
     }
 
-    buildModel(inputShape, outputShape, lr) {
+    buildModel(inputShape, outputShape, lr, isClassification = false) {
         if (this.model) {
             this.model.dispose(); 
         }
+
+        this.taskType = isClassification ? 'classification' : 'regression';
+        const outputActivation = isClassification ? 'softmax' : 'linear';
 
         this.model = tf.sequential();
         
@@ -31,7 +35,7 @@ export class NetworkBuilder {
             this.model.add(tf.layers.dense({
                 units: outputShape,
                 inputShape: [inputShape],
-                activation: 'linear'
+                activation: outputActivation
             }));
         } else {
             this.model.add(tf.layers.dense({
@@ -49,15 +53,18 @@ export class NetworkBuilder {
             
             this.model.add(tf.layers.dense({
                 units: outputShape,
-                activation: 'linear' 
+                activation: outputActivation
             }));
         }
 
         const optimizer = tf.train.adam(lr);
+        const loss = isClassification ? 'categoricalCrossentropy' : 'meanSquaredError';
+        const metrics = isClassification ? ['accuracy'] : [];
+
         this.model.compile({
             optimizer: optimizer,
-            loss: 'meanSquaredError'
-            // NO metrics — loss IS mse, adding metrics:['mse'] computes it TWICE per batch
+            loss: loss,
+            metrics: metrics
         });
 
         return this.model;
@@ -131,6 +138,117 @@ export class NetworkBuilder {
         if (this.isTraining) {
             this.stopRequested = true;
         }
+    }
+
+    /**
+     * Evaluate model performance on given data.
+     * Returns different metrics depending on taskType.
+     * For classification: accuracy, per-class precision/recall, confusion matrix
+     * For regression: R², MAE, RMSE, per-target stats
+     */
+    evaluateModel(xTensor, yTensor) {
+        if (!this.model) throw new Error("No model available.");
+
+        return tf.tidy(() => {
+            const predictions = this.model.predict(xTensor);
+            const yData = yTensor.arraySync();
+            const predData = predictions.arraySync();
+            const numSamples = yData.length;
+
+            if (this.taskType === 'classification') {
+                const numClasses = yData[0].length;
+
+                // Build confusion matrix 
+                const confMatrix = Array.from({ length: numClasses }, () => new Array(numClasses).fill(0));
+                let correct = 0;
+
+                for (let i = 0; i < numSamples; i++) {
+                    const trueIdx = yData[i].indexOf(Math.max(...yData[i]));
+                    let predIdx = 0;
+                    let predMax = predData[i][0];
+                    for (let c = 1; c < numClasses; c++) {
+                        if (predData[i][c] > predMax) {
+                            predMax = predData[i][c];
+                            predIdx = c;
+                        }
+                    }
+                    confMatrix[trueIdx][predIdx]++;
+                    if (trueIdx === predIdx) correct++;
+                }
+
+                const accuracy = correct / numSamples;
+
+                // Per-class precision & recall
+                const perClass = [];
+                for (let c = 0; c < numClasses; c++) {
+                    const tp = confMatrix[c][c];
+                    let predTotal = 0, trueTotal = 0;
+                    for (let j = 0; j < numClasses; j++) {
+                        predTotal += confMatrix[j][c]; // column sum
+                        trueTotal += confMatrix[c][j]; // row sum
+                    }
+                    perClass.push({
+                        precision: predTotal > 0 ? tp / predTotal : 0,
+                        recall: trueTotal > 0 ? tp / trueTotal : 0,
+                        support: trueTotal
+                    });
+                }
+
+                return {
+                    type: 'classification',
+                    accuracy,
+                    numSamples,
+                    numClasses,
+                    confusionMatrix: confMatrix,
+                    perClass
+                };
+            } else {
+                // Regression metrics per target
+                const numTargets = yData[0].length;
+                const targetMetrics = [];
+
+                for (let t = 0; t < numTargets; t++) {
+                    let sumErr = 0, sumAbsErr = 0, sumSqErr = 0;
+                    let sumY = 0;
+
+                    for (let i = 0; i < numSamples; i++) {
+                        const err = predData[i][t] - yData[i][t];
+                        sumErr += err;
+                        sumAbsErr += Math.abs(err);
+                        sumSqErr += err * err;
+                        sumY += yData[i][t];
+                    }
+
+                    const mae = sumAbsErr / numSamples;
+                    const mse = sumSqErr / numSamples;
+                    const rmse = Math.sqrt(mse);
+                    const meanY = sumY / numSamples;
+
+                    let ssTot = 0;
+                    for (let i = 0; i < numSamples; i++) {
+                        ssTot += (yData[i][t] - meanY) ** 2;
+                    }
+                    const r2 = ssTot > 0 ? 1 - (sumSqErr / ssTot) : 0;
+
+                    targetMetrics.push({ mae, rmse, r2, mse });
+                }
+
+                // Averaged across targets
+                const avgMae = targetMetrics.reduce((s, m) => s + m.mae, 0) / numTargets;
+                const avgRmse = targetMetrics.reduce((s, m) => s + m.rmse, 0) / numTargets;
+                const avgR2 = targetMetrics.reduce((s, m) => s + m.r2, 0) / numTargets;
+
+                return {
+                    type: 'regression',
+                    numSamples,
+                    numTargets,
+                    mae: avgMae,
+                    rmse: avgRmse,
+                    r2: avgR2,
+                    perTarget: targetMetrics
+                };
+            }
+        });
     }
 
     /**
@@ -246,12 +364,21 @@ export class NetworkBuilder {
         // browserFiles expects an array or FileList.
         this.model = await tf.loadLayersModel(tf.io.browserFiles(files));
         
+        // Detect task type from output activation
+        const lastLayer = this.model.layers[this.model.layers.length - 1];
+        const lastConfig = lastLayer.getConfig ? lastLayer.getConfig() : {};
+        const outputAct = lastConfig.activation || 'linear';
+        this.taskType = (outputAct === 'softmax') ? 'classification' : 'regression';
+
         // Re-compile so it can be resumed
         const lr = 0.01; 
         const optimizer = tf.train.adam(lr);
+        const loss = this.taskType === 'classification' ? 'categoricalCrossentropy' : 'meanSquaredError';
+        const metrics = this.taskType === 'classification' ? ['accuracy'] : [];
         this.model.compile({
             optimizer: optimizer,
-            loss: 'meanSquaredError'
+            loss: loss,
+            metrics: metrics
         });
         
         return this.model;

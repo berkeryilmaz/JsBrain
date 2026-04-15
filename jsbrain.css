@@ -15,11 +15,18 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    max-height: 200px;
+    flex: 1;
+    min-height: 60px;
     overflow-y: auto;
     margin-bottom: 12px;
     padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
 }
+
+.feature-list::-webkit-scrollbar { width: 4px; }
+.feature-list::-webkit-scrollbar-track { background: transparent; }
+.feature-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
 .feature-item {
     display: flex;
@@ -495,4 +502,238 @@
 
 body[data-theme="light"] .pred-results-table tbody tr:nth-child(even) {
     background: rgba(0, 0, 0, 0.02);
+}
+
+/* ═══════════════════════════════════════════ */
+/* ─── Performance Tab ─── */
+/* ═══════════════════════════════════════════ */
+
+.perf-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 32px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    flex: 1;
+}
+
+.perf-summary-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.perf-metric-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    animation: pred-card-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.perf-metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--border-light);
+}
+
+.perf-metric-card.perf-accent::before {
+    background: var(--gradient-success);
+}
+
+.perf-metric-card:hover {
+    border-color: var(--accent-primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.perf-metric-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.perf-metric-value {
+    font-family: var(--font-mono);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.perf-metric-card.perf-accent .perf-metric-value {
+    background: var(--gradient-success);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.perf-metric-bar {
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 4px;
+    margin-top: 6px;
+    overflow: hidden;
+}
+
+.perf-metric-bar-fill {
+    height: 100%;
+    background: var(--gradient-success);
+    border-radius: 4px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── Performance Sections ─── */
+
+.perf-section {
+    margin-bottom: 16px;
+}
+
+.perf-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* ─── Confusion Matrix ─── */
+
+.confusion-matrix-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+
+.confusion-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 12px;
+}
+
+.confusion-matrix th,
+.confusion-matrix td {
+    padding: 8px 12px;
+    text-align: center;
+    border: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.confusion-matrix th {
+    background: var(--bg-panel);
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--text-secondary);
+}
+
+.confusion-matrix .cm-corner {
+    background: var(--bg-card);
+    color: var(--text-muted);
+    font-size: 9px;
+}
+
+.confusion-matrix .cm-pred-header {
+    color: var(--accent-secondary);
+}
+
+.confusion-matrix .cm-actual-header {
+    background: var(--bg-panel);
+    font-weight: 600;
+    color: var(--success);
+    text-align: right;
+}
+
+.confusion-matrix .cm-cell {
+    font-weight: 600;
+    color: var(--text-primary);
+    transition: background 0.2s ease;
+    min-width: 44px;
+}
+
+.confusion-matrix .cm-cell.cm-diag {
+    font-weight: 700;
+    color: var(--success);
+}
+
+.confusion-matrix tbody tr:hover .cm-cell {
+    filter: brightness(1.2);
+}
+
+/* ─── Per-Class / Per-Target Table ─── */
+
+.perf-class-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.perf-class-table th {
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: var(--bg-panel);
+    color: var(--text-secondary);
+    border-bottom: 2px solid var(--border);
+}
+
+.perf-class-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+}
+
+.perf-class-table td.class-name {
+    font-family: var(--font-main);
+    font-weight: 600;
+    color: var(--accent-secondary);
+}
+
+.perf-class-table tbody tr:hover {
+    background: var(--bg-hover);
+}
+
+.perf-class-table tbody tr:nth-child(even) {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+body[data-theme="light"] .perf-class-table tbody tr:nth-child(even) {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+/* ─── Performance Tab Button with icon ─── */
+
+.pred-tab svg {
+    vertical-align: middle;
+    margin-right: 2px;
 }

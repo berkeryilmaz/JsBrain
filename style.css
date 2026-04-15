@@ -374,9 +374,11 @@ body {
     width: var(--control-width);
     background: var(--bg-panel);
     border-left: 1px solid var(--border);
-    overflow-y: auto;
+    overflow-y: hidden;
     overflow-x: hidden;
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
 }
@@ -387,6 +389,15 @@ body {
 .control-section {
     padding: 16px;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.control-section.control-section-grow {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
 }
 .control-section h3 {
     font-size: 11px;
