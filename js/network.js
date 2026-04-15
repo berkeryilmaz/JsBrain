@@ -7,8 +7,8 @@ export class NetworkBuilder {
         this.taskType = 'regression'; // 'regression' or 'classification'
     }
 
-    addLayer(units, activation) {
-        this.layers.push({ units, activation });
+    addLayer(config) {
+        this.layers.push(config);
     }
 
     removeLayer(index) {
@@ -38,17 +38,25 @@ export class NetworkBuilder {
                 activation: outputActivation
             }));
         } else {
-            this.model.add(tf.layers.dense({
-                units: this.layers[0].units,
-                inputShape: [inputShape],
-                activation: this.layers[0].activation
-            }));
-            
-            for (let i = 1; i < this.layers.length; i++) {
-                this.model.add(tf.layers.dense({
-                    units: this.layers[i].units,
-                    activation: this.layers[i].activation
-                }));
+            let isFirst = true;
+
+            for (let l of this.layers) {
+                const layerType = l.type || 'dense'; // Default backwards compatibility
+                
+                if (layerType === 'dense') {
+                    this.model.add(tf.layers.dense({
+                        units: l.units,
+                        activation: l.activation,
+                        ...(isFirst ? { inputShape: [inputShape] } : {})
+                    }));
+                } else if (layerType === 'dropout') {
+                    this.model.add(tf.layers.dropout({
+                        rate: l.rate,
+                        ...(isFirst ? { inputShape: [inputShape] } : {})
+                    }));
+                }
+                
+                isFirst = false;
             }
             
             this.model.add(tf.layers.dense({

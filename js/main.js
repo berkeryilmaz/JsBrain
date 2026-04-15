@@ -226,10 +226,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         layers.forEach((l, index) => {
             const div = document.createElement('div');
             div.className = 'layer-pill dynamic';
-            div.innerHTML = `
-                Dense<br><span class="layer-dim">${l.units} ${l.activation}</span>
-                <button class="layer-action-remove" title="Remove Layer">×</button>
-            `;
+            
+            const layerType = l.type || 'dense';
+            if(layerType === 'dense') {
+                div.innerHTML = `
+                    Dense<br><span class="layer-dim">${l.units} ${l.activation}</span>
+                    <button class="layer-action-remove" title="Remove Layer">×</button>
+                `;
+            } else if(layerType === 'dropout') {
+                div.innerHTML = `
+                    Dropout<br><span class="layer-dim">Rate: ${l.rate}</span>
+                    <button class="layer-action-remove" title="Remove Layer">×</button>
+                `;
+            }
             
             div.querySelector('.layer-action-remove').addEventListener('click', () => {
                 network.removeLayer(index);
@@ -282,12 +291,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             visualizer.setLabels(inLabels, outLabels);
         } catch(e) { /* ignore if data not ready */ }
 
-        // Estimate params
+        const layers = network.getLayers();
         let params = 0;
         let prev = counts.inputs;
-        for (let l of network.getLayers()) {
-            params += (prev * l.units) + parseInt(l.units);
-            prev = l.units;
+        
+        for (let l of layers) {
+            const layerType = l.type || 'dense';
+            if (layerType === 'dense') {
+                const u = l.units || 64;
+                params += (prev * u) + parseInt(u);
+                prev = u;
+            } else if (layerType === 'dropout') {
+                params += 0;
+            }
         }
         params += (prev * counts.targets) + parseInt(counts.targets);
         layerSummary.textContent = `${params.toLocaleString()} Params`;
@@ -305,9 +321,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('layer-modal-close').onclick = () => modal.style.display = 'none';
     document.getElementById('layer-modal-cancel').onclick = () => modal.style.display = 'none';
     document.getElementById('layer-modal-apply').onclick = () => {
-        const units = parseInt(document.getElementById('layer-units').value);
-        const act = document.getElementById('layer-activation').value;
-        network.addLayer(units, act);
+        const type = document.getElementById('layer-type').value;
+        if (type === 'dense') {
+            const units = parseInt(document.getElementById('layer-units').value);
+            const act = document.getElementById('layer-activation').value;
+            network.addLayer({ type: 'dense', units, activation: act });
+        } else if (type === 'dropout') {
+            const rate = parseFloat(document.getElementById('layer-rate').value);
+            network.addLayer({ type: 'dropout', rate });
+        }
+        
         renderLayerStack();
         updateArchitecture();
         modal.style.display = 'none';
