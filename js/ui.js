@@ -303,16 +303,16 @@ export class Visualizer {
         this.draw();
     }
 
-    draw() {
-        const ctx = this.ctx;
-        const w = this._w || this.canvas.width;
-        const h = this._h || this.canvas.height;
+    draw(customCtx = null, exportMode = false) {
+        const ctx = customCtx || this.ctx;
+        const w = customCtx ? customCtx.canvas.width : (this._w || this.canvas.width);
+        const h = customCtx ? customCtx.canvas.height : (this._h || this.canvas.height);
 
         // Read theme colors from CSS
         const bodyStyle = getComputedStyle(document.body);
         const labelColor = bodyStyle.getPropertyValue('--nn-node-label').trim() || '#8888a8';
         const mutedColor = bodyStyle.getPropertyValue('--text-muted').trim() || '#555570';
-        const nnBg = bodyStyle.getPropertyValue('--nn-bg').trim();
+        const nnBg = bodyStyle.getPropertyValue('--nn-bg').trim() || '#13131a';
 
         if (nnBg && nnBg !== 'transparent') {
             ctx.fillStyle = nnBg;
@@ -331,10 +331,10 @@ export class Visualizer {
         }
 
         const numLayers = this.layerSizes.length;
-        const padding = 60;
-        const layerSpacing = (w - padding * 2) / Math.max(1, numLayers - 1);
+        const padding = exportMode ? 80 : 60;
+        const layerSpacing = exportMode ? 200 : (w - padding * 2) / Math.max(1, numLayers - 1);
 
-        const maxNodesDisplay = 16;
+        const maxNodesDisplay = exportMode ? Infinity : 16;
         const nodeRadius = 8;
 
         // --- Compute node positions ---
@@ -342,7 +342,7 @@ export class Visualizer {
         for (let l = 0; l < numLayers; l++) {
             const numNodes = Math.min(this.layerSizes[l], maxNodesDisplay);
             const truncated = this.layerSizes[l] > maxNodesDisplay;
-            const nodeSpacing = Math.min(24, (h - padding * 2) / (numNodes + 1));
+            const nodeSpacing = exportMode ? 35 : Math.min(24, (h - padding * 2) / (numNodes + 1));
             const startY = h / 2 - (numNodes - 1) * nodeSpacing / 2;
             const x = padding + l * layerSpacing;
             const positions = [];
@@ -507,6 +507,37 @@ export class Visualizer {
                 }
             }
         }
+    }
+    
+    exportPNG() {
+        if (this.inputNodes === 0 && this.outputNodes === 0) return;
+        
+        const numLayers = this.layerSizes.length;
+        const maxNodes = Math.max(...this.layerSizes);
+        
+        const padding = 80;
+        const layerSpacing = 200;
+        const nodeSpacing = 35;
+        
+        // Dynamic unbounded scale
+        const reqWidth = (padding * 2) + ((numLayers - 1) * layerSpacing);
+        const reqHeight = (padding * 2) + Math.max(1, maxNodes) * nodeSpacing;
+        
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = reqWidth;
+        offCanvas.height = reqHeight;
+        const offCtx = offCanvas.getContext('2d');
+        
+        this.draw(offCtx, true); // Use export mode true
+        
+        // Trigger download
+        const url = offCanvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `jsbrain-network-${maxNodes}nodes.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     }
 }
 

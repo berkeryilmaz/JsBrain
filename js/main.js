@@ -318,6 +318,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
     
+    const btnSaveNnPng = document.getElementById('btn-save-nn-png');
+    if (btnSaveNnPng) {
+        btnSaveNnPng.onclick = () => visualizer.exportPNG();
+    }
+    
     document.getElementById('layer-modal-close').onclick = () => modal.style.display = 'none';
     document.getElementById('layer-modal-cancel').onclick = () => modal.style.display = 'none';
     document.getElementById('layer-modal-apply').onclick = () => {
