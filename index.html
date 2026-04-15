@@ -106,7 +106,7 @@
 
             <div class="control-section control-section-grow">
                 <h3>Dataset Configuration</h3>
-                <div class="btn-grid" style="grid-template-columns: 1fr; margin-bottom: 12px;">
+                <div class="btn-grid" style="grid-template-columns: 1fr; margin-bottom: 8px;">
                     <label id="csv-drop-zone" class="ctrl-btn upload-btn" style="border-style: dashed; padding: 20px 12px; height: auto;">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -116,6 +116,16 @@
                         Upload CSV
                         <input type="file" id="csv-upload" accept=".csv" style="display:none;">
                     </label>
+                </div>
+                <!-- Action buttons under upload -->
+                <div class="btn-grid btn-grid-2" style="margin-bottom: 12px; display: none;" id="dataset-actions-row">
+                    <button id="btn-preview-data" class="ctrl-btn secondary" style="flex:1;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px; margin-right: 4px; vertical-align: middle;">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        Preview & Configure
+                    </button>
                 </div>
                 <!-- Dynamic Feature Dropdowns go here -->
                 <div id="feature-config-list" class="feature-list" style="display:none;"></div>
@@ -336,6 +346,33 @@
             <div class="modal-footer">
                 <button id="layer-modal-cancel" class="ctrl-btn secondary">Cancel</button>
                 <button id="layer-modal-apply" class="ctrl-btn primary">Add Layer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Preview Modal -->
+    <div id="data-preview-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-card" style="width: 90vw; max-width: 1200px;">
+            <div class="modal-header">
+                <h3>Data Preview & Configuration</h3>
+                <button id="data-preview-close" class="icon-btn" title="Close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: 0; overflow-x: auto; max-height: 60vh; overflow-y: auto;">
+                <table class="data-grid" id="data-preview-table">
+                    <thead id="data-preview-head"></thead>
+                    <tbody id="data-preview-body"></tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <div style="flex:1; display:flex; align-items:center;">
+                    <span class="modal-desc" style="margin:0;" id="data-preview-info">Row count: 0</span>
+                </div>
+                <button id="data-preview-apply" class="ctrl-btn primary">Apply & Close</button>
             </div>
         </div>
     </div>

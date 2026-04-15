@@ -59,9 +59,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         dataManager.loadCSV(file, (headers, rowCount) => {
             isDatasetLoaded = true;
             overlay.style.display = 'none';
+            document.getElementById('dataset-actions-row').style.display = 'flex';
             showToast(`Loaded ${rowCount} rows`, 'success');
             renderFeatureConfig(headers);
             updateArchitecture();
+            
+            // Automatically open preview
+            openDataPreviewModal();
         }, (err) => {
             showToast(err, 'error');
         });
@@ -120,6 +124,88 @@ document.addEventListener('DOMContentLoaded', async () => {
             div.appendChild(name);
             div.appendChild(select);
             featureList.appendChild(div);
+        });
+    }
+
+    // ----- Data Preview Modal -----
+    
+    const previewModal = document.getElementById('data-preview-modal');
+    
+    document.getElementById('btn-preview-data').addEventListener('click', () => {
+        if (!isDatasetLoaded) return;
+        openDataPreviewModal();
+    });
+
+    document.getElementById('data-preview-close').addEventListener('click', closeDataPreviewModal);
+    document.getElementById('data-preview-apply').addEventListener('click', () => {
+        closeDataPreviewModal();
+        renderFeatureConfig(dataManager.rawHeaders); // sync sidebar
+        updateArchitecture();
+    });
+
+    function openDataPreviewModal() {
+        previewModal.style.display = 'grid';
+        renderDataPreviewTable();
+    }
+
+    function closeDataPreviewModal() {
+        previewModal.style.display = 'none';
+    }
+
+    function renderDataPreviewTable() {
+        const headers = dataManager.rawHeaders;
+        const previewRows = dataManager.rawData.slice(0, 15);
+        
+        const thead = document.getElementById('data-preview-head');
+        const tbody = document.getElementById('data-preview-body');
+        const info = document.getElementById('data-preview-info');
+        
+        info.textContent = `Showing ${previewRows.length} of ${dataManager.rawData.length} total rows.`;
+        
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
+        
+        // Header Row (Col names + dropdowns)
+        const trHead = document.createElement('tr');
+        headers.forEach(h => {
+            const th = document.createElement('th');
+            
+            const colName = document.createElement('span');
+            colName.className = 'col-name';
+            colName.textContent = h;
+            colName.title = h;
+            
+            const select = document.createElement('select');
+            select.className = 'custom-select';
+            select.innerHTML = `
+                <option value="input" ${dataManager.config[h] === 'input' ? 'selected' : ''}>Input (Num)</option>
+                <option value="input-cat" ${dataManager.config[h] === 'input-cat' ? 'selected' : ''}>Input (Cat)</option>
+                <option value="target" ${dataManager.config[h] === 'target' ? 'selected' : ''}>Target (Num)</option>
+                <option value="target-cat" ${dataManager.config[h] === 'target-cat' ? 'selected' : ''}>Target (Cat)</option>
+                <option value="ignore" ${dataManager.config[h] === 'ignore' ? 'selected' : ''}>Ignore</option>
+            `;
+            
+            select.addEventListener('change', (e) => {
+                dataManager.updateConfig(h, e.target.value);
+            });
+            
+            th.appendChild(colName);
+            th.appendChild(select);
+            trHead.appendChild(th);
+        });
+        thead.appendChild(trHead);
+        
+        // Data Rows
+        previewRows.forEach(row => {
+            const tr = document.createElement('tr');
+            headers.forEach(h => {
+                const td = document.createElement('td');
+                const val = row[h] !== undefined && row[h] !== null ? String(row[h]) : '';
+                td.textContent = val;
+                td.title = val; // tooltip for truncated text
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
         });
     }
 

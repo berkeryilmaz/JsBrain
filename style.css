@@ -791,3 +791,52 @@ body[data-theme="light"] #control-panel.floating {
     #control-panel { width: 100%; height: auto; max-height: 200px; border-left: none; border-top: 1px solid var(--border); flex-direction: row; }
 }
 
+/* ─── Data Grid (Preview) ─── */
+.data-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-family: var(--font-mono);
+}
+.data-grid th {
+    background: var(--bg-panel);
+    padding: 10px;
+    border-bottom: 2px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    text-align: left;
+    min-width: 120px;
+}
+.data-grid th select {
+    width: 100%;
+    min-width: 105px;
+    margin-top: 6px;
+    padding: 4px;
+    font-size: 11px;
+    text-overflow: ellipsis;
+}
+.data-grid th .col-name {
+    display: block;
+    font-family: var(--font-main);
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+.data-grid td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.data-grid tbody tr:hover td {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
