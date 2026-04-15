@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JsBrain — Browser-based TensorFlow.js Builder</title>
+    <meta name="description"
+        content="Build, train, and visualize custom Neural Networks directly in the browser using TensorFlow.js">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="jsbrain.css">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+
+<body>
+    <header id="app-header">
+        <div class="header-left">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                    <line x1="12" y1="8" x2="12" y2="16" />
+                    <circle cx="12" cy="12" r="2" fill="white" />
+                </svg>
+            </div>
+            <h1>Js<span class="accent">Brain</span></h1>
+        </div>
+        <div class="header-center">
+            <div class="metric-pill" id="pill-epoch">
+                <span class="pill-label">Epoch</span>
+                <span class="pill-value" id="metric-epoch">0 / 0</span>
+            </div>
+            <div class="metric-pill" id="pill-loss">
+                <span class="pill-label">Loss</span>
+                <span class="pill-value" id="metric-loss">0.000</span>
+            </div>
+            <div class="metric-pill" id="pill-val-loss">
+                <span class="pill-label">Val Loss</span>
+                <span class="pill-value" id="metric-val-loss">0.000</span>
+            </div>
+            <div class="metric-pill" id="pill-acc">
+                <span class="pill-label">Accuracy (est)</span>
+                <span class="pill-value" id="metric-acc">0%</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <button id="btn-theme-toggle" class="theme-toggle" title="Toggle Day/Night Mode">
+                <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5" />
+                    <line x1="12" y1="1" x2="12" y2="3" />
+                    <line x1="12" y1="21" x2="12" y2="23" />
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                    <line x1="1" y1="12" x2="3" y2="12" />
+                    <line x1="21" y1="12" x2="23" y2="12" />
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                </svg>
+                <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+            </button>
+            <div class="status-indicator" id="status-indicator">
+                <div class="status-dot"></div>
+                <span id="status-text">Idle</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="app-body" style="display: flex; flex: 1; overflow: hidden; width: 100%;">
+        <aside id="control-panel">
+            <div class="panel-header">
+                <h2>Controls</h2>
+            </div>
+            
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="btn-grid btn-grid-2" style="grid-template-columns: 1fr 1fr; margin-bottom: 8px;">
+                    <button id="btn-train" class="ctrl-btn primary">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="5 3 19 12 5 21 5 3" />
+                        </svg>
+                        Train
+                    </button>
+                    <button id="btn-stop" class="ctrl-btn danger" disabled>
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="6" y="6" width="12" height="12" rx="1" />
+                        </svg>
+                        Stop
+                    </button>
+                </div>
+                <div class="btn-grid btn-grid-3">
+                    <button id="btn-reset" class="ctrl-btn secondary">Reset</button>
+                    <button id="btn-save-model" class="ctrl-btn accent">Save</button>
+                    <button id="btn-load-model" class="ctrl-btn success">Load</button>
+                    <input type="file" id="model-upload-input" accept=".json" style="display:none;" multiple>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Dataset Configuration</h3>
+                <div class="btn-grid" style="grid-template-columns: 1fr; margin-bottom: 12px;">
+                    <label id="csv-drop-zone" class="ctrl-btn upload-btn" style="border-style: dashed; padding: 20px 12px; height: auto;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        Upload CSV
+                        <input type="file" id="csv-upload" accept=".csv" style="display:none;">
+                    </label>
+                </div>
+                <!-- Dynamic Feature Dropdowns go here -->
+                <div id="feature-config-list" class="feature-list" style="display:none;"></div>
+                
+                <div class="slider-group" style="margin-top:14px">
+                    <div class="slider-header">
+                        <label for="slider-split">Train/Val Split</label>
+                        <span class="slider-val" id="val-split">80% / 20%</span>
+                    </div>
+                    <input type="range" id="slider-split" min="0.5" max="0.95" step="0.05" value="0.8">
+                </div>
+                
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <label for="select-norm">Normalization</label>
+                    </div>
+                    <select id="select-norm" class="custom-select">
+                        <option value="minmax">Min-Max Scaling</option>
+                        <option value="zscore">Z-Score Normalization</option>
+                        <option value="none">None</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Hyperparameters</h3>
+                <div class="slider-group">
+                    <div class="slider-header">
+                        <label for="slider-lr">Learning Rate</label>
+                        <span class="slider-val" id="val-lr">0.01</span>
+                    </div>
+                    <input type="range" id="slider-lr" min="0.0001" max="0.1" step="0.0001" value="0.01">
+                </div>
+                <div class="slider-group flex-row-input">
+                    <label>Epochs</label>
+                    <input type="number" id="input-epochs" class="number-input" value="100" min="1" max="10000">
+                </div>
+                <div class="slider-group flex-row-input">
+                    <label>Batch Size</label>
+                    <select id="select-batch" class="custom-select small-select">
+                        <option value="16">16</option>
+                        <option value="32">32</option>
+                        <option value="64">64</option>
+                        <option value="128">128</option>
+                        <option value="256">256</option>
+                        <option value="null" selected>Full (No Batches)</option>
+                    </select>
+                </div>
+                <div class="slider-group flex-row-input">
+                    <label>Hardware</label>
+                    <select id="select-backend" class="custom-select small-select">
+                        <option value="webgl" selected>GPU (WebGL)</option>
+                        <option value="cpu">CPU</option>
+                    </select>
+                </div>
+            </div>
+
+        </aside>
+
+        <main id="app-main" style="flex-direction: column;">
+            
+            <section id="layer-panel" class="panel" style="flex: 0.3; border-bottom: 1px solid var(--border); min-height: 120px;">
+                <div class="panel-header">
+                    <h2>Custom Network Builder</h2>
+                    <div class="panel-actions">
+                        <span class="nn-info" id="layer-summary">0 Params</span>
+                    </div>
+                </div>
+                <div class="layer-builder-container" id="layer-builder">
+                    <!-- Layer Stack dynamically populated -->
+                    <div class="layer-pill fixed">Input<br><span class="layer-dim" id="input-dim">? Features</span></div>
+                    
+                    <button class="add-layer-btn" onclick="UI.openLayerModal(this)">+</button>
+                    
+                    <div class="layer-pill fixed target">Output<br><span class="layer-dim" id="output-dim">? Targets</span></div>
+                </div>
+            </section>
+            
+            <section style="display: flex; flex: 1; flex-direction: row; min-height: 0;">
+                <section id="sim-panel" class="panel" style="flex: 1.5; border-right: 1px solid var(--border);">
+                    <div class="panel-header">
+                        <h2>Training Metrics</h2>
+                    </div>
+                    <div class="canvas-wrapper" id="chart-canvas-wrapper" style="padding: 16px;">
+                        <canvas id="chart-canvas"></canvas>
+                        <div class="canvas-overlay" id="data-overlay">
+                            <div class="overlay-badge">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                                </svg>
+                                Upload CSV to Begin
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="nn-panel" class="panel" style="flex: 1;">
+                    <div class="panel-header">
+                        <h2>Architecture Visualization</h2>
+                    </div>
+                    <div class="canvas-wrapper" id="nn-canvas-wrapper">
+                        <canvas id="nn-canvas"></canvas>
+                    </div>
+                </section>
+            </section>
+
+            <!-- Prediction Panel -->
+            <section id="prediction-panel" class="panel" style="flex: 0.55; border-top: 1px solid var(--border); display: none;">
+                <div class="panel-header">
+                    <h2>Prediction / Test</h2>
+                    <div class="panel-actions">
+                        <div class="pred-tab-bar">
+                            <button class="pred-tab active" data-tab="single" id="pred-tab-single">Single Test</button>
+                            <button class="pred-tab" data-tab="batch" id="pred-tab-batch">Batch CSV</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="prediction-body">
+                    <!-- Single Test -->
+                    <div class="pred-content active" id="pred-single-content">
+                        <div class="pred-inputs-grid" id="pred-inputs-grid">
+                            <!-- Dynamically populated -->
+                        </div>
+                        <div class="pred-actions">
+                            <button id="btn-predict-single" class="ctrl-btn primary" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+                                    <polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>
+                                </svg>
+                                Predict
+                            </button>
+                        </div>
+                        <div class="pred-results" id="pred-single-results" style="display: none;">
+                            <!-- Result cards rendered here -->
+                        </div>
+                    </div>
+                    <!-- Batch CSV Test -->
+                    <div class="pred-content" id="pred-batch-content">
+                        <div class="pred-batch-upload-row">
+                            <label class="ctrl-btn upload-btn pred-csv-upload" style="border-style: dashed; flex: 1;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="17 8 12 3 7 8" />
+                                    <line x1="12" y1="3" x2="12" y2="15" />
+                                </svg>
+                                Upload Test CSV
+                                <input type="file" id="pred-csv-upload" accept=".csv" style="display:none;">
+                            </label>
+                            <button id="btn-download-results" class="ctrl-btn accent" style="display: none;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                                Download CSV
+                            </button>
+                        </div>
+                        <div class="pred-batch-info" id="pred-batch-info" style="display: none;"></div>
+                        <div class="pred-results-table-wrap" id="pred-results-table-wrap" style="display: none;">
+                            <table class="pred-results-table" id="pred-results-table">
+                                <thead id="pred-table-head"></thead>
+                                <tbody id="pred-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Add Layer Modal -->
+    <div id="layer-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Add Hidden Layer</h3>
+                <button id="layer-modal-close" class="icon-btn" title="Close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-input-group flex-col">
+                    <label>Units / Neurons</label>
+                    <input type="number" id="layer-units" class="modal-input" value="64" min="1" max="1024">
+                </div>
+                <div class="modal-input-group flex-col" style="margin-top: 12px;">
+                    <label>Activation Function</label>
+                    <select id="layer-activation" class="custom-select modal-select">
+                        <option value="relu">ReLU</option>
+                        <option value="sigmoid">Sigmoid</option>
+                        <option value="tanh">Tanh</option>
+                        <option value="linear">Linear</option>
+                        <option value="softmax">Softmax</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="layer-modal-cancel" class="ctrl-btn secondary">Cancel</button>
+                <button id="layer-modal-apply" class="ctrl-btn primary">Add Layer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Toast -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+
+</html>
