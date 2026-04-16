@@ -352,7 +352,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         
-        const lr = parseFloat(document.getElementById('slider-lr').value);
+        const lr = parseFloat(document.getElementById('input-lr').value);
         const epochs = parseInt(document.getElementById('input-epochs').value);
         const batchSize = document.getElementById('select-batch').value;
         const splitRatio = parseFloat(document.getElementById('slider-split').value);
@@ -1006,9 +1006,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     
     const tLr = document.getElementById('slider-lr');
-    const valLr = document.getElementById('val-lr');
+    const inputLr = document.getElementById('input-lr');
+    
     tLr.addEventListener('input', (e) => {
-        valLr.textContent = parseFloat(e.target.value).toFixed(4);
+        inputLr.value = parseFloat(e.target.value).toFixed(4);
+    });
+
+    inputLr.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        if (!isNaN(val)) {
+            // Also sync slider if within bounds
+            if (val >= parseFloat(tLr.min) && val <= parseFloat(tLr.max)) {
+                tLr.value = val;
+            }
+        }
     });
 
     // Hardware Backend Toggle

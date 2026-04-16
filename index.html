@@ -154,10 +154,10 @@
                 <h3>Hyperparameters</h3>
                 <div class="slider-group">
                     <div class="slider-header">
-                        <label for="slider-lr">Learning Rate</label>
-                        <span class="slider-val" id="val-lr">0.01</span>
+                        <label for="input-lr">Learning Rate</label>
+                        <input type="number" id="input-lr" class="number-input" style="width: 80px; padding: 2px 4px; font-size: 11px; text-align: right;" value="0.001" min="0.000001" max="10" step="0.0001">
                     </div>
-                    <input type="range" id="slider-lr" min="0.0001" max="0.1" step="0.0001" value="0.01">
+                    <input type="range" id="slider-lr" min="0.0001" max="0.1" step="0.0001" value="0.001">
                 </div>
                 <div class="slider-group flex-row-input">
                     <label>Epochs</label>

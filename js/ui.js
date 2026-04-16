@@ -247,8 +247,16 @@ export class Visualizer {
 
         // Build layerSizes array like SelfDrivingCar
         this.layerSizes = [this.inputNodes];
+        let prev = this.inputNodes;
         for (const l of this.layers) {
-            this.layerSizes.push(parseInt(l.units));
+            const lType = l.type || 'dense';
+            if (lType === 'dense') {
+                const u = parseInt(l.units) || prev;
+                this.layerSizes.push(u);
+                prev = u;
+            } else if (lType === 'dropout') {
+                this.layerSizes.push(prev); // Dropout has same shape as previous
+            }
         }
         this.layerSizes.push(this.outputNodes);
 
@@ -369,9 +377,17 @@ export class Visualizer {
 
             // Activation label
             if (l > 0 && l < numLayers - 1 && this.layers[l - 1]) {
+                const lyr = this.layers[l - 1];
+                const lyrType = lyr.type || 'dense';
+                
                 ctx.fillStyle = mutedColor;
                 ctx.font = '9px "JetBrains Mono"';
-                ctx.fillText(this.layers[l - 1].activation, x, padding - 6);
+                
+                if (lyrType === 'dense') {
+                    ctx.fillText(lyr.activation || 'linear', x, padding - 6);
+                } else if (lyrType === 'dropout') {
+                    ctx.fillText(`Drop(${lyr.rate})`, x, padding - 6);
+                }
             }
 
             if (truncated) {
