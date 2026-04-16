@@ -269,9 +269,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             for (const f of featureInfo.inputs) {
                 if (f.type === 'categorical') {
-                    // Each category becomes a one-hot node: is_CategoryValue
+                    // Each category becomes a one-hot node: is_Header_CategoryValue
                     for (const cat of f.categories) {
-                        inLabels.push(`is_${cat}`);
+                        inLabels.push(`is_${f.name}_${cat}`);
                     }
                 } else {
                     inLabels.push(f.name);
@@ -281,7 +281,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             for (const f of featureInfo.targets) {
                 if (f.type === 'categorical') {
                     for (const cat of f.categories) {
-                        outLabels.push(`is_${cat}`);
+                        outLabels.push(`is_${f.name}_${cat}`);
                     }
                 } else {
                     outLabels.push(f.name);
