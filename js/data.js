@@ -377,6 +377,12 @@ export class DataManager {
                 }
                 result[h] = map.unique[maxIdx];
                 result[h + '_confidence'] = catVals[maxIdx];
+
+                // Add probabilities for all categories
+                for (let k = 0; k < catVals.length; k++) {
+                    result[`${h}_prob_${map.unique[k]}`] = catVals[k];
+                }
+
                 colIdx += map.unique.length;
             } else {
                 let val = normalizedValues[colIdx];
